@@ -18,7 +18,7 @@ volatile int forceStop = 0;
 volatile int cats = 0, dogs = 0, birds = 0, n_cats = 0, n_dogs = 0, n_birds = 0;
 
 pthread_mutex_t mutex;
-pthread_cond_t cond_cat, cond_dog, cond_bird;
+pthread_cond_t cond_cat, cond_bird_dog;// cond_dog, cond_bird;
 
 void cat_enter(threadData *arg)
 {
@@ -36,8 +36,9 @@ void cat_exit(threadData *arg)
 	cats--;
 	if (cats == 0)
 	{
-		pthread_cond_broadcast(&cond_bird);
-		pthread_cond_broadcast(&cond_dog);
+		pthread_cond_broadcast(&cond_bird_dog);
+		//pthread_cond_broadcast(&cond_bird);
+		//pthread_cond_broadcast(&cond_dog);
 	}
 	pthread_mutex_unlock(&mutex);
 }
@@ -46,7 +47,8 @@ void dog_enter(threadData *arg)
 {
 	pthread_mutex_lock(&mutex);
 	while (cats != 0)
-		pthread_cond_wait(&cond_dog, &mutex);
+		pthread_cond_wait(&cond_bird_dog, &mutex);
+		//pthread_cond_wait(&cond_dog, &mutex);
 	dogs++;
 	arg->count++;
 	pthread_mutex_unlock(&mutex);
@@ -65,7 +67,7 @@ void bird_enter(threadData *arg)
 {
 	pthread_mutex_lock(&mutex);
 	while (cats != 0)
-		pthread_cond_wait(&cond_bird, &mutex);
+		pthread_cond_wait(&cond_bird_dog, &mutex);
 	birds++;
 	arg->count++;
 	pthread_mutex_unlock(&mutex);
@@ -159,7 +161,13 @@ int main (int argc, char* argv[])
         return 1;
     }
 
-    if (pthread_cond_init(&cond_dog, NULL) != 0)
+    if (pthread_cond_init(&cond_bird_dog, NULL) != 0)
+    {
+        printf("\n condition variable init has failed\n");
+        return 1;
+    }
+
+    /*if (pthread_cond_init(&cond_dog, NULL) != 0)
     {
         printf("\n condition variable init has failed\n");
         return 1;
@@ -170,7 +178,7 @@ int main (int argc, char* argv[])
         printf("\n condition variable init has failed\n");
         return 1;
     }
-
+	*/
 	int totalThreads = n_cats + n_birds + n_dogs;
 	pthread_t threadPool[totalThreads];
 	threadData thData[totalThreads];
