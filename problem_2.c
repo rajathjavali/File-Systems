@@ -9,6 +9,7 @@ ID: u1140594
 #include <string.h>
 #include <dirent.h>
 #include <errno.h>
+#include <sys/mman.h>
 
 #include "crc.h"
 
@@ -20,7 +21,7 @@ struct dirTree
 	struct dirTree *next;
 
 };
-
+char directoryList[256][4096];
 typedef struct dirTree dirList;
 dirList *root;
 
@@ -71,14 +72,22 @@ int main (int argc, char* argv[])
 	}
 
 	struct dirent *file;
-	
+	int index = 0;
 	file = readdir(directory);
 	while ((file = readdir(directory)) != NULL)
 	{
-		if(file->d_type == DT_DIR)
-			continue;
-		addNode(file);
+		if(file->d_type == DT_REG)
+		{
+			//strcpy(directoryList[index], name);
+			strcpy(directoryList[index++], file->d_name);
+			//addNode(file);
+		}
 	}
+
+	/*for(int i= 0; i< index;i++)
+	{
+		printf("%s\n", directoryList[i]);
+	}*/
 
 	/*
 	// testing directory listings
@@ -91,7 +100,40 @@ int main (int argc, char* argv[])
 	}*/
 
 	//printing checksum here
-	dirList *temp = root;
+	printf("%d\n", index);
+	for(int i = 0 ; i < index; i++)
+	{
+		char path[MAX_LENGTH];
+		strcpy(path, name);
+		strcat(path, directoryList[i]);
+		
+		FILE *subfile = fopen(path, "r");
+		if(!subfile){
+			printf("%s ACCESS ERROR\n", directoryList[i]);
+			continue;
+		}
+		printf("%s ", directoryList[i]);
+		// finding file size // referred stack overflow
+		fseek(subfile, 0L, SEEK_END);
+		int fileSize = ftell(subfile);
+		rewind(subfile);
+
+		//printf("%d\n", fileSize);
+
+		char *buf = (char *)mmap(0, fileSize, PROT_READ, MAP_SHARED, fileno(subfile), 0);
+
+		//printf("%s\n", buf);
+		//long size = fread(buf, 1, fileSize, subfile);
+
+		uint32_t checksum = 0;
+		checksum = crc32(checksum, buf, fileSize);
+		printf("%#.8X\n", checksum);
+
+		if(fclose(subfile))
+			printf("Error closing file %s %s\n", directoryList[i], strerror (errno));
+		
+	}
+	/*dirList *temp = root;
 	while (temp != NULL)
 	{
 		char path[MAX_LENGTH];
@@ -120,7 +162,7 @@ int main (int argc, char* argv[])
 			printf("Error closing file %s %s\n", temp->file->d_name, strerror (errno));
 		temp = temp->next;
 	}
-
+	*/
 
 	int i = 0;
 	while(closedir(directory) && i < 4) {

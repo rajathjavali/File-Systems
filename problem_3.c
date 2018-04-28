@@ -9,6 +9,7 @@ ID: u1140594
 #include <string.h>
 #include <dirent.h>
 #include <pthread.h>
+#include <sys/mman.h>
 
 #include "crc.h"
 
@@ -21,6 +22,11 @@ struct dirTree
 	int checksum;
 
 };
+
+typedef struct thread_data
+{
+	int tid;
+} thread_data;
 
 typedef struct dirTree dirList;
 dirList *root, *sharedPtr;
@@ -58,18 +64,20 @@ void *compute_checksum(void *arg) {
 
 	__sync_synchronize();
 
+    //thread_data* data = ((thread_data*) arg);
+
 	while (sharedPtr != NULL){
-		int *i = (int *)arg;
-		printf("%d\n", *i);
 		
 		dirList *temp;
+		
 		
 		pthread_mutex_lock(&lock);
 		temp = sharedPtr;
 		sharedPtr = sharedPtr->next;
 		pthread_mutex_unlock(&lock);
 
-
+		//printf("%d\n", data->tid);
+		
 		char path[MAX_LENGTH];
 		strcpy(path, name);
 		strcat(path, temp->file->d_name);
@@ -88,11 +96,10 @@ void *compute_checksum(void *arg) {
 		int fileSize = ftell(subfile);
 		rewind(subfile);
 
-		char buf[fileSize];
-		size_t readSize = fread(buf, 1, fileSize, subfile);
+		char *buf = (char *)mmap(0, fileSize, PROT_READ, MAP_SHARED, fileno(subfile), 0);
 
 		uint32_t checksum = 0;
-		checksum = crc32(checksum, buf, readSize);
+		checksum = crc32(checksum, buf, fileSize);
 		printf("%s %#.8X\n", temp->file->d_name, checksum);
 		if(fclose(subfile))
 			printf("Error closing file %s\n", temp->file->d_name);
@@ -101,9 +108,12 @@ void *compute_checksum(void *arg) {
 	return NULL;
 }
 
+
+
 int main (int argc, char* argv[])
 {
-	if ( argc < 2)
+	printf("%d\n", argc);
+	if ( argc < 3)
 	{
 		printf("Invalid execution call. \n./<executable> <directory path> <num of threads>;\n");
 		return -1;
@@ -138,13 +148,15 @@ int main (int argc, char* argv[])
 	struct dirent *file;
 	
 	file = readdir(directory);
+
 	while ((file = readdir(directory)) != NULL)
 	{
-		if(file->d_type == DT_DIR)
+		if(file->d_type != DT_REG)
 			continue;
 		addNode(file);
 	}
 
+	//printf("%d\n", count);
 	/*
 	// testing directory listings
 	// prints the non sub directory files of the input Directory
@@ -171,28 +183,29 @@ int main (int argc, char* argv[])
 		printf("Making use of just %d num of threads\n", fileCount);
 	}
 
-	int min = num_thread < fileCount ? num_thread : fileCount;
-	pthread_t threads[min];
-	
-	for (int i = 0; i < min; i++) {
+	//int min = num_thread < fileCount ? num_thread : fileCount;
+	pthread_t threads[num_thread];
+	thread_data data[num_thread];
+    
+	for (int i = 0; i < num_thread; i++) {
 		//printf("%d\n", i);
-		int tid = i;
-		if(pthread_create(&threads[i], NULL, &compute_checksum, &tid))
+		data[i].tid = i;
+		if(pthread_create(&threads[i], NULL, &compute_checksum, &data[i]))
 		{
 			printf("pthread_create failed !!!\n");
 			return -1;
 		}
 	}
 
-	for (int i = 0; i < min; i++) {
+	for (int i = 0; i < num_thread; i++) {
 		pthread_join(threads[i], NULL);
 	}
+	
 
-
-	int i = 0;
-	while(closedir(directory) && i < 4) {
-		i++;
-		printf("Could not close directory!! Attempt %d\n", i);
+	int it = 0;
+	while(closedir(directory) && it < 4) {
+		it++;
+		printf("Could not close directory!! Attempt %d\n", it);
 	}
 	return 0;
 
