@@ -75,29 +75,30 @@ int main (int argc, char* argv[])
 	file = readdir(directory);
 	while ((file = readdir(directory)) != NULL)
 	{
-		if(file->d_type == DT_DIR)
-			continue;
+		if(file->d_type == DT_REG)
 		addNode(file);
 	}
 
-	/*
-	// testing directory listings
-	// prints the non sub directory files of the input Directory
 	dirList *temp = root;
+	/*
+ 	// testing directory listings
+	// prints the non sub directory files of the input Directory
+
 	while (temp!=NULL)
 	{
 		printf("%s\n", temp->file->d_name);
 		temp = temp->next;
-	}*/
+	}
 
 	//printing checksum here
-	dirList *temp = root;
+	temp = root;*/
 	while (temp != NULL)
 	{
 		char path[MAX_LENGTH];
 		strcpy(path, name);
 		strcat(path, temp->file->d_name);
 
+		//printf("Path %s, ", path);
 		FILE *subfile = fopen(path, "r");
 		if(!subfile){
 			printf("%s ACCESS ERROR\n", temp->file->d_name);
@@ -105,16 +106,24 @@ int main (int argc, char* argv[])
 			continue;
 		}
 		// finding file size // referred stack overflow
-		fseek(subfile, 0L, SEEK_END);
+		if(fseek(subfile, 0L, SEEK_END) == -1)
+		{
+			printf("fseek error on file %s\n", temp->file->d_name);
+			if(fclose(subfile))
+				printf("fclose error on file %s\n", temp->file->d_name);
+			continue;
+		}
+		
 		int fileSize = ftell(subfile);
 		rewind(subfile);
-
+		
 		char buf[fileSize];
 		size_t readSize = fread(buf, 1, fileSize, subfile);
 
 		uint32_t checksum = 0;
+		printf("%s ", temp->file->d_name);
 		checksum = crc32(checksum, buf, readSize);
-		printf("%s %#.8X\n", temp->file->d_name, checksum);
+		printf("%#.8X\n", checksum);
 
 		if(fclose(subfile))
 			printf("Error closing file %s %s\n", temp->file->d_name, strerror (errno));

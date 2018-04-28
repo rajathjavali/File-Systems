@@ -22,6 +22,11 @@ struct dirTree
 
 };
 
+typedef struct thread_data
+{
+	int tid;
+} thread_data;
+
 typedef struct dirTree dirList;
 dirList *root, *sharedPtr;
 int fileCount = 0;
@@ -58,18 +63,20 @@ void *compute_checksum(void *arg) {
 
 	__sync_synchronize();
 
+    thread_data* data = ((thread_data*) arg);
+
 	while (sharedPtr != NULL){
-		int *i = (int *)arg;
-		printf("%d\n", *i);
 		
 		dirList *temp;
+		
 		
 		pthread_mutex_lock(&lock);
 		temp = sharedPtr;
 		sharedPtr = sharedPtr->next;
 		pthread_mutex_unlock(&lock);
 
-
+		printf("%d\n", data->tid);
+		
 		char path[MAX_LENGTH];
 		strcpy(path, name);
 		strcat(path, temp->file->d_name);
@@ -103,7 +110,8 @@ void *compute_checksum(void *arg) {
 
 int main (int argc, char* argv[])
 {
-	if ( argc < 2)
+	printf("%d\n", argc);
+	if ( argc < 3)
 	{
 		printf("Invalid execution call. \n./<executable> <directory path> <num of threads>;\n");
 		return -1;
@@ -173,11 +181,12 @@ int main (int argc, char* argv[])
 
 	int min = num_thread < fileCount ? num_thread : fileCount;
 	pthread_t threads[min];
-	
+	thread_data data[num_thread];
+    
 	for (int i = 0; i < min; i++) {
 		//printf("%d\n", i);
-		int tid = i;
-		if(pthread_create(&threads[i], NULL, &compute_checksum, &tid))
+		data[i].tid = i;
+		if(pthread_create(&threads[i], NULL, &compute_checksum, &data[i]))
 		{
 			printf("pthread_create failed !!!\n");
 			return -1;
