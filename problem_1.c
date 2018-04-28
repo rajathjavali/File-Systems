@@ -95,6 +95,8 @@ void play(void) {
 
 void *playArea(void *arg)
 {
+	__sync_synchronize();
+
 	threadData *thread = (threadData *)arg;
 	while(!forceStop)
 	{

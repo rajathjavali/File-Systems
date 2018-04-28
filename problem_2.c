@@ -76,11 +76,11 @@ int main (int argc, char* argv[])
 	file = readdir(directory);
 	while ((file = readdir(directory)) != NULL)
 	{
-		if(file->d_type == DT_REG)
+		if(file->d_type != DT_DIR)
 		{
-			//strcpy(directoryList[index], name);
-			strcpy(directoryList[index++], file->d_name);
-			//addNode(file);
+			strcpy(directoryList[index], name);
+			//strcpy(directoryList[index++], file->d_name);
+			addNode(file);
 		}
 	}
 
@@ -101,7 +101,7 @@ int main (int argc, char* argv[])
 	*/
 	//printing checksum here
 	//printf("%d\n", index);
-	for(int i = 0 ; i < index; i++)
+	/*for(int i = 0 ; i < index; i++)
 	{
 		char path[MAX_LENGTH];
 		strcpy(path, name);
@@ -132,8 +132,8 @@ int main (int argc, char* argv[])
 		if(fclose(subfile))
 			printf("Error closing file %s %s\n", directoryList[i], strerror (errno));
 		
-	}
-	/*dirList *temp = root;
+	}*/
+	dirList *temp = root;
 	while (temp != NULL)
 	{
 		char path[MAX_LENGTH];
@@ -159,19 +159,18 @@ int main (int argc, char* argv[])
 		int fileSize = ftell(subfile);
 		rewind(subfile);
 		
-		char buf[fileSize];
-		size_t readSize = fread(buf, 1, fileSize, subfile);
-
+		char *buf = (char *)mmap(0, fileSize, PROT_READ, MAP_SHARED, fileno(subfile), 0);
+		
 		uint32_t checksum = 0;
 		printf("%s ", temp->file->d_name);
-		checksum = crc32(checksum, buf, readSize);
+		checksum = crc32(checksum, buf, fileSize);
 		printf("%#.8X\n", checksum);
 
 		if(fclose(subfile))
 			printf("Error closing file %s %s\n", temp->file->d_name, strerror (errno));
 		temp = temp->next;
 	}
-	*/
+	
 
 	int i = 0;
 	while(closedir(directory) && i < 4) {

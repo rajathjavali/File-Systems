@@ -151,7 +151,7 @@ int main (int argc, char* argv[])
 
 	while ((file = readdir(directory)) != NULL)
 	{
-		if(file->d_type != DT_REG)
+		if(file->d_type == DT_DIR)
 			continue;
 		addNode(file);
 	}
